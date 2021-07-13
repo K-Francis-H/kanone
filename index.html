@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<script>
+			document.addEventListener("DOMContentLoaded", function(){
+				const canvas = document.getElementById("canvas");
+				const ctx = canvas.getContext("2d");
+
+				const PIECE_MASK = 0x0F;
+				const W = 0x01; //white color piece
+				const B = 0x02; //black color piece
+				const E = 0x00; //empty tile
+
+				const ANNOTATION_MASK = 0xF0;
+				const AVAILABLE_MOVE = 0x10;
+				const CURSOR = 0x20;
+				const SELECTED_PIECE = 0x40;
+
+				var size = 8; //allow user to se this somewhere
+
+				//now draw the board anywhere from 6x6 to 14x14, or 9x13, 14x17, and 13x20
+				//we'll start with 14x14
+				var board = [];
+				//init columns
+				for(let i=0; i < size; i++){
+					if( i % 2 === 0){
+						board.push(genRow(W, B, size));
+					}else{
+						board.push(genRow(B, W, size));
+					}
+				}
+
+				function genRow(startColor, secondColor, length){
+					let row = [];
+					let isStartColor = true;
+					for(let i=0; i < length; i++){
+						row[i] = isStartColor ? startColor : secondColor;
+						isStartColor = !isStartColor;
+					}
+					return row;
+				}
+
+				function drawBoard(board, canvas, ctx){
+					let size = canvas.width /  board.length;
+					//TODO will need x and y dimensions separately in the future
+
+					//color the background
+					ctx.fillStyle="#AAA";
+					ctx.fillRect(0,0,canvas.width,canvas.height);
+
+					//draw outer tile square then round occupying piece (if it exists)
+					for(let i=0; i < board.length; i++){
+						for(let j=0; j < board[i].length; j++){
+							//check for cursor
+							if( (board[i][j] & CURSOR) === CURSOR){
+								ctx.fillStyle = "#0F0";
+								ctx.fillRect(i*size, j*size, size, size);
+							}
+
+							//draw box outline
+							ctx.strokeStyle="#000";
+							ctx.beginPath();
+							ctx.rect(i*size, j*size, size, size);
+							ctx.stroke();
+
+							let cx = i*size + size/2;
+							let cy = j*size + size/2;
+
+							ctx.fillStyle = (board[i][j] & PIECE_MASK) === W ? "#EEE" : "#333";
+
+							ctx.beginPath();
+							ctx.arc(cx, cy, size*0.4, 0, Math.PI*2);
+							ctx.fill();
+
+							
+						}
+					}
+				}
+
+				drawBoard(board, canvas, ctx);
+
+				let moveCount = 0; //move 1 & 2 remove a stone then the capturing begins
+
+				let gameLoop = setInterval(function(){
+					//recieve input
+						//input through Move object created through click listener
+					//update board
+						//apply move
+					//drawBoard
+						//drawBoard Annotations (available moves, etc)
+					//check win state
+
+					//TODO AI, minimax should be effective early game due to few moves available
+						//goal is to end game with available captures while opponent has none
+						//a reasonable stategy is to take the most captures available per turn
+						//or simply make sure at least one (more is better) capture is available at the bottom of the tree
+					drawBoard(board, canvas, ctx);
+				}, 1000/60);
+
+				function getMoves(board, player){
+
+				}
+
+				canvas.addEventListener("mousemove", function(e){
+					let x = event.pageX - offset(canvas).left;
+					let y = event.pageY - offset(canvas).top;
+
+					var tileX = Math.floor(x / Math.floor(canvas.width/size));
+					var tileY = Math.floor(y / Math.floor(canvas.height/size));
+
+					
+					clearCursor(board);
+					board[tileX][tileY] |= CURSOR;
+				});
+
+				canvas.addEventListener("mouseout", function(){
+					clearCursor(board);
+				});
+
+				canvas.addEventListener("click", function(e){
+					let x = event.pageX - offset(canvas).left;
+					let y = event.pageY - offset(canvas).top;
+
+					var tileX = Math.floor(x / Math.floor(canvas.width/size));
+					var tileY = Math.floor(y / Math.floor(canvas.height/size));
+
+					//now determine moves, etc
+				});
+
+				function clearCursor(board){
+					for(let i=0; i < size; i++){
+						for(let j=0; j < size; j++){
+							board[i][j] &= (0xdf);
+						}
+					}
+				}
+
+				function offset(el){
+					//if(!el) el = this;
+		
+					var x = el.offsetLeft;
+					var y = el.offsetTop;
+		
+					while(el = el.offsetParent){
+						x += el.offsetLeft;
+						y += el.offsetTop;
+					}
+					return { left: x, top : y};
+				}
+			});
+		</script>
+	</head>
+	<body>
+		<canvas id="canvas" width="800" height="800"></canvas>
+	</body>
+</html>
