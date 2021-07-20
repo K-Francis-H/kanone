@@ -125,13 +125,19 @@
 					var tileX = Math.floor(x / Math.floor(canvas.width/size));
 					var tileY = Math.floor(y / Math.floor(canvas.height/size));
 
+					let selectedPiece = {
+						x: tileX,
+						y: tileY
+					};
 					//now determine moves, etc
+					let moves = getMoves(board, selectedPiece);
+					//annotate the board 
 				});
 
 				function clearCursor(board){
 					for(let i=0; i < size; i++){
 						for(let j=0; j < size; j++){
-							board[i][j] &= (0xdf);
+							board[i][j] &= (0xdf); //!CURSOR
 						}
 					}
 				}
@@ -147,6 +153,58 @@
 						y += el.offsetTop;
 					}
 					return { left: x, top : y};
+				}
+
+				function getMoves(board, selectedPiece){
+					let moves = [];
+					//error check selected piece
+					if(selectedPiece.x > board.length || selectedPiece.x < 0
+					|| selectedPiece.y > board[0].length || selectedPiece.y < 0){
+						return moves; 
+					};
+
+					
+					//move : {sx: a, sy: b, ex: a2, ey: b2}
+
+					//jump to that position
+					let sp = selectedPiece;
+					let player = (board[sp.x][sp.y] & PIECE_MASK);
+					//now search up, down, left, right to find capture moves
+					for(let i=sp.x; i < board.length; i+=2){
+						if( (board[i][sp.y] & PIECE_MASK) === E && (board[i-1][sp.y] & PIECE_MASK) !== player){
+							//add move
+							moves.push({
+								sx: sp.x, sy: sp.y,
+								ex: i, ey: sp.y
+							});
+						}
+					}
+					for(let i=sp.x; i >= 0; i-=2){
+						if( (board[i][sp.y] & PIECE_MASK) === E && (board[i+1][sp.y] & PIECE_MASK) !== player){
+							moves.push({
+								sx: sp.x, sy: sp.y,
+								ex: i, ey: sp.y
+							});
+						}
+					}
+					for(let i=sp.y; i < board[sp.x].length; i+=2){
+						if( (board[sp.x][i] & PIECE_MASK) === E && (board[sp.x][i-1] & PIECE_MASK) !== player){
+							moves.push({
+								sx: sp.x, sy: sp.y,
+								ex: sp.x, ey: i
+							});
+						}
+					}
+					for(let i=sp.y; i >= 0; i-=2){
+						if( (board[sp.x][i] & PIECE_MASK) === E && (board[sp.x][i+1] & PIECE_MASK) !== player){
+							moves.push({
+								sx: sp.x, sy: sp.y,
+								ex: sp.x, ey: i
+							});
+						}
+					}
+
+					return moves;
 				}
 			});
 		</script>
