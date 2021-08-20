@@ -202,7 +202,7 @@
 							if(selectedPiece && isValidMove(selection, moves) ){
 								board[selectedPiece.x][selectedPiece.y] &= !currentPlayer;
 								board[tileX][tileY] |= currentPlayer;
-								removeJumpedPiece(board, {
+								removeJumpedPieces(board, {
 									sx: selectedPiece.x,
 									sy: selectedPiece.y,
 									ex: tileX,
@@ -240,9 +240,34 @@
 					drawBoard(board, canvas, ctx); 
 				});
 
-				function removeJumpedPiece(board, move){
+				function removeJumpedPieces(board, move){
+					//wait don't be stupid just find the direction with a change and delete everything between start and end
+					let start, end;
+					if(move.ex !== move.sx){
+						start = Math.min(move.ex, move.sx);
+						end = Math.max(move.ex, move.sx);
+						for(let i=start+1; i < end; i++){
+							board[i][move.ey] &= E;
+						} 
+					}else{
+						start = Math.min(move.ey, move.sy);
+						end = Math.max(move.ey, move.sy);
+						for(let i=start+1; i < end; i++){
+							board[move.ex][i] &= E;
+						}
+					}
+
+					/*let xdiff = 0;
+					let ydiff = 0;
+					if(move.ex > move.sx){ xdiff = -1; }
+					else if(move.sx > move.ex){ xdiff = 1; }
+
+					if(move.ey > move.sy){ ydiff = -1; }
+					else if(move.sy > move.ey){ ydiff = 1; }
+
+					board[move.ex+xdiff][move.ey+ydiff] &= E;*/
 					//TODO figure out math to always get the correct coordinate to remove regardless of direction travelled
-					console.log(move);
+					/*console.log(move);
 					let xdiff = move.ex - move.sx;
 					let ydiff = move.ey - move.sy;
 					console.log('xdiff: '+xdiff);
@@ -254,7 +279,7 @@
 					else if(ydiff > 0){ ydiff--; }
 					console.log(xdiff);
 					console.log(ydiff);
-					board[move.ex+xdiff][move.ey+ydiff] &= E;
+					board[move.ex+xdiff][move.ey+ydiff] &= E;*/
 
 					//if(
 				}
@@ -370,41 +395,43 @@
 					//move : {sx: a, sy: b, ex: a2, ey: b2}
 
 					//jump to that position
+					//TODO this is way too permissive, need to prevent invalid moves
 					let sp = selectedPiece;
 					let player = (board[sp.x][sp.y] & PIECE_MASK);
 					//now search up, down, left, right to find capture moves
-					for(let i=sp.x; i < board.length; i+=2){
-						if( (board[i][sp.y] & PIECE_MASK) === E && (board[i-1][sp.y] & PIECE_MASK) !== player){
+					for(let i=sp.x+2; i < board.length; i+=2){
+						//if landing one is empty and zone before is not empty and is opponent
+						if( (board[i][sp.y] & PIECE_MASK) === E && ( (board[i-1][sp.y] & PIECE_MASK) !== player && (board[i-1][sp.y] & PIECE_MASK) !== E ) ){
 							//add move
 							moves.push({
 								sx: sp.x, sy: sp.y,
 								ex: i, ey: sp.y
 							});
-						}
+						}else{break;}//path blocked
 					}
-					for(let i=sp.x; i >= 0; i-=2){
-						if( (board[i][sp.y] & PIECE_MASK) === E && (board[i+1][sp.y] & PIECE_MASK) !== player){
+					for(let i=sp.x-2; i >= 0; i-=2){
+						if( (board[i][sp.y] & PIECE_MASK) === E && ( (board[i+1][sp.y] & PIECE_MASK) !== player && (board[i+1][sp.y] & PIECE_MASK) !== E ) ){
 							moves.push({
 								sx: sp.x, sy: sp.y,
 								ex: i, ey: sp.y
 							});
-						}
+						}else{break;}//path blocked
 					}
-					for(let i=sp.y; i < board[sp.x].length; i+=2){
-						if( (board[sp.x][i] & PIECE_MASK) === E && (board[sp.x][i-1] & PIECE_MASK) !== player){
+					for(let i=sp.y+2; i < board[sp.x].length; i+=2){
+						if( (board[sp.x][i] & PIECE_MASK) === E && ( (board[sp.x][i-1] & PIECE_MASK) !== player && (board[sp.x][i-1] & PIECE_MASK) !== E) ){
 							moves.push({
 								sx: sp.x, sy: sp.y,
 								ex: sp.x, ey: i
 							});
-						}
+						}else{break;}//path blocked
 					}
-					for(let i=sp.y; i >= 0; i-=2){
-						if( (board[sp.x][i] & PIECE_MASK) === E && (board[sp.x][i+1] & PIECE_MASK) !== player){
+					for(let i=sp.y-2; i >= 0; i-=2){
+						if( (board[sp.x][i] & PIECE_MASK) === E && ( (board[sp.x][i+1] & PIECE_MASK) !== player && (board[sp.x][i+1] & PIECE_MASK) !== E) ){
 							moves.push({
 								sx: sp.x, sy: sp.y,
 								ex: sp.x, ey: i
 							});
-						}
+						}else{break;}//path blocked
 					}
 
 					return moves;
