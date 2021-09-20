@@ -240,6 +240,17 @@
 					drawBoard(board, canvas, ctx); 
 				});
 
+				function simulateMove(board, move){
+					let cloneBoard = JSON.parse(JSON.stringify(board));
+					//run move
+					return cloneBoard;
+				}
+				//then run getMoves() for each player if aiPlayer count > before or enemy player < before good move
+				function scoreMove(board, move){
+					let movedBoard = simulateMove(board, move);
+					let numMoves = 
+				}	
+
 				function removeJumpedPieces(board, move){
 					//wait don't be stupid just find the direction with a change and delete everything between start and end
 					let start, end;
@@ -378,6 +389,18 @@
 					}
 				}
 
+				function getAllMoves(board, currentPlayer){
+					let totalMoves = [];
+					for(let i=0; i < board.length; i++){
+						for(let j=0; j < board[i].length; j++){
+							if( (board[i][j] & PIECE_MASK) === currentPlayer){
+								totalMoves = totalMoves.concat(getMoves(board, {x:i, y:j}, currentPlayer));
+							}
+						}
+					}
+					return totalMoves;
+				}
+
 				function getMoves(board, selectedPiece, currentPlayer){
 					if( (board[selectedPiece.x][selectedPiece.y] & PIECE_MASK) === E){
 						return []; //no piece selected
@@ -399,6 +422,7 @@
 					let sp = selectedPiece;
 					let player = (board[sp.x][sp.y] & PIECE_MASK);
 					//now search up, down, left, right to find capture moves
+					//all start at a +/- 2 offset so that the else{break;} doesn't trigger immediately because we are on the selectedPiece
 					for(let i=sp.x+2; i < board.length; i+=2){
 						//if landing one is empty and zone before is not empty and is opponent
 						if( (board[i][sp.y] & PIECE_MASK) === E && ( (board[i-1][sp.y] & PIECE_MASK) !== player && (board[i-1][sp.y] & PIECE_MASK) !== E ) ){
