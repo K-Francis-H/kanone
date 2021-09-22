@@ -197,6 +197,7 @@
 						}else if(selectedPiece){
 							clearAnnotations(board);
 							let moves = getMoves(board, selectedPiece, currentPlayer);
+							console.log('TOTAL MOVES: ', getAllMoves(board, currentPlayer));
 							console.log(moves);
 							console.log(selection);
 							if(selectedPiece && isValidMove(selection, moves) ){
@@ -246,9 +247,10 @@
 					return cloneBoard;
 				}
 				//then run getMoves() for each player if aiPlayer count > before or enemy player < before good move
-				function scoreMove(board, move){
+				function scoreMove(board, move, currentPlayer){
 					let movedBoard = simulateMove(board, move);
-					let numMoves = 
+					let numMoves = getAllMoves(movedBoard, currentPlayer);
+					//let numOpponenetMoves
 				}	
 
 				function removeJumpedPieces(board, move){
