@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<script>
+			document.addEventListener("DOMContentLoaded", function(){
+				const canvas = document.getElementById("canvas");
+				const ctx = canvas.getContext("2d");
+
+				const PIECE_MASK = 0x0F;
+				const W = 0x01; //white color piece
+				const B = 0x02; //black color piece
+				const E = 0x00; //empty tile
+
+				const ANNOTATION_MASK = 0xF0;
+				const AVAILABLE_MOVE = 0x10;
+				const CURSOR = 0x20;
+				const SELECTED_PIECE = 0x40;
+
+				var size = 8; //allow user to se this somewhere
+
+				//now draw the board anywhere from 6x6 to 14x14, or 9x13, 14x17, and 13x20
+				//we'll start with 14x14
+				var board = [];
+				//init columns
+				for(let i=0; i < size; i++){
+					if( i % 2 === 0){
+						board.push(genRow(W, B, size));
+					}else{
+						board.push(genRow(B, W, size));
+					}
+				}
+
+				function genRow(startColor, secondColor, length){
+					let row = [];
+					let isStartColor = true;
+					for(let i=0; i < length; i++){
+						row[i] = isStartColor ? startColor : secondColor;
+						isStartColor = !isStartColor;
+					}
+					return row;
+				}
+
+				//remove first 2 from corner so game can start without first move logic
+				board[0][0] = E;
+				board[1][0] = E;
+
+				function drawBoard(board, canvas, ctx){
+					let size = canvas.width /  board.length;
+					//TODO will need x and y dimensions separately in the future
+
+					//color the background
+					ctx.fillStyle="#AAA";
+					ctx.fillRect(0,0,canvas.width,canvas.height);
+
+					//draw outer tile square then round occupying piece (if it exists)
+					for(let i=0; i < board.length; i++){
+						for(let j=0; j < board[i].length; j++){
+							//check for cursor
+							if( isCursored(board[i][j]) ){
+								ctx.fillStyle = "#0F0";
+								ctx.fillRect(i*size, j*size, size, size);
+							}
+
+							
+
+							//draw box outline
+							ctx.strokeStyle="#000";
+							ctx.beginPath();
+							ctx.rect(i*size, j*size, size, size);
+							ctx.stroke();
+
+							let cx = i*size + size/2;
+							let cy = j*size + size/2;
+
+							if( isAnnotated(board[i][j]) ){
+								console.log('annotated');
+								ctx.fillStyle = '#096';
+								ctx.arc(cx, cy, size*0.2, 0, Math.PI*2);
+								ctx.fill();
+							}
+
+							if( (board[i][j] & PIECE_MASK) === W){
+								ctx.fillStyle = "#EEE";
+							}
+							else if( (board[i][j] & PIECE_MASK) === B){
+								ctx.fillStyle = "#333";
+							}else{//empty
+								continue;
+							}
+
+							ctx.beginPath();
+							ctx.arc(cx, cy, size*0.4, 0, Math.PI*2);
+							ctx.fill();
+
+							if( (board[i][j] & AVAILABLE_MOVE) == AVAILABLE_MOVE ){
+								
+							}
+							
+						}
+					}
+				}
+				
+				function isAnnotated(pos){
+					return (pos & AVAILABLE_MOVE) === AVAILABLE_MOVE;
+				}
+
+				function isCursored(pos){
+					return (pos & CURSOR) === CURSOR;
+				}
+
+				drawBoard(board, canvas, ctx);
+
+				var moveCount = 2; //move 1 & 2 remove a stone then the capturing begins
+				var currentPlayer = B;
+				var humanPlayer = B;
+				var aiPlayer = W;
+
+				let gameLoop = setInterval(function(){
+					//recieve input
+						//input through Move object created through click listener
+					//update board
+						//apply move
+					//drawBoard
+						//drawBoard Annotations (available moves, etc)
+					//check win state
+					//clearAnnotations(board);
+					//getMoves(board, 
+
+					//TODO AI, minimax should be effective early game due to few moves available
+						//goal is to end game with available captures while opponent has none
+						//a reasonable stategy is to take the most captures available per turn
+						//or simply make sure at least one (more is better) capture is available at the bottom of the tree
+					//drawBoard(board, canvas, ctx);
+					
+					if(aiPlayer != currentPlayer){
+						console.log('not ai turn...');
+						return;
+					}
+
+
+					//otherwise find a move
+					let moves = getAllMoves(board, currentPlayer);
+					let bestMoveIndex = 0;
+					let mostUsMoves = -1000;
+					let leastThemMoves = 1000;
+					let bestMetric = -1000;
+					let bestMetricIndex = 0;
+					for(let i=0; i < moves.length; i++){
+						let postMoveState = simulateMove(board, moves[i], currentPlayer);
+						let usMovesCount = getAllMoves(postMoveState, currentPlayer).length;
+						let themMovesCount = getAllMoves(postMoveState, humanPlayer).length;
+						console.log(postMoveState);
+						console.log(usMovesCount);
+						if(usMovesCount > mostUsMoves){
+							mostUsMoves = usMovesCount;
+							bestMoveIndex = i;
+						}
+						let metric = usMovesCount + (usMovesCount - themMovesCount);
+						if(metric > bestMetric){
+							bestMetric = metric;
+							bestMetricIndex = i;
+						} 
+					}
+					console.log('BEST USONLY MOVE: '+mostUsMoves);
+					console.log(moves[bestMoveIndex]);
+					console.log('BEST METRIC MOVE: '+bestMetric);
+					console.log(moves[bestMetricIndex]);
+
+					//perform move
+					let m = moves[bestMetricIndex];
+					if(!m){
+						console.log('AI has lost!');
+						return;
+					}
+					board[m.sx][m.sy] &= !currentPlayer;
+					board[m.ex][m.ey] |= currentPlayer;
+					removeJumpedPieces(board, m);
+					currentPlayer = currentPlayer === B ? W : B;
+					moveCount++; //just for stats here not rules
+					
+					drawBoard(board, canvas, ctx); 
+				}, 1000);
+
+
+				canvas.addEventListener("mousemove", function(e){
+					let x = event.pageX - offset(canvas).left;
+					let y = event.pageY - offset(canvas).top;
+
+					var tileX = Math.floor(x / Math.floor(canvas.width/size));
+					var tileY = Math.floor(y / Math.floor(canvas.height/size));
+
+					
+					clearCursor(board);
+					board[tileX][tileY] |= CURSOR;
+				});
+
+				canvas.addEventListener("mouseout", function(){
+					clearCursor(board);
+				});
+
+				var selectedPiece = null;
+				canvas.addEventListener("click", function(e){
+					//only run this for humans
+					if(currentPlayer != humanPlayer){return;}
+
+					console.log("click");
+					let x = event.pageX - offset(canvas).left;
+					let y = event.pageY - offset(canvas).top;
+
+					var tileX = Math.floor(x / Math.floor(canvas.width/size));
+					var tileY = Math.floor(y / Math.floor(canvas.height/size));
+
+
+					/*let selectedPiece = */
+					let selection = {
+						x: tileX,
+						y: tileY
+					};
+
+					console.log('selectedPiece: ',selectedPiece);
+					console.log('selection: ', selection);
+
+					/*console.log(moveCount);
+					console.log(currentPlayer);
+					let color = (board[tileX][tileY] & PIECE_MASK)
+					console.log(color);
+*/
+					
+
+					let moves = [];
+					//now determine moves, etc
+					if(moveCount < 2){
+						selectedPiece = selection;
+						console.log(board[selectedPiece.x][selectedPiece.y]);
+						let allowed = firstMove(board, selectedPiece, currentPlayer, moveCount);
+						console.log(board[selectedPiece.x][selectedPiece.y]);
+						if(allowed){
+							console.log("move is allowed");
+							currentPlayer = currentPlayer === B ? W : B;
+							moveCount++;
+						}
+						selectedPiece = null;
+					}else{
+						if(selectedPiece && tileX === selectedPiece.x && tileY === selectedPiece.y){
+							selectedPiece = null;
+						}else if( (currentPlayer === (board[tileX][tileY] & PIECE_MASK) ) && (board[tileX][tileY] !== E) ){
+							selectedPiece = selection;
+							let moves = getMoves(board, selectedPiece, currentPlayer);
+							clearAnnotations(board);
+							for(let i=0; i < moves.length; i++){
+								board[moves[i].ex][moves[i].ey] |= AVAILABLE_MOVE;
+							}
+						}else if(selectedPiece){
+							clearAnnotations(board);
+							let moves = getMoves(board, selectedPiece, currentPlayer);
+							//console.log('TOTAL MOVES: ', getAllMoves(board, currentPlayer));
+							console.log(moves);
+							console.log(selection);
+							if(selectedPiece && isValidMove(selection, moves) ){
+								board[selectedPiece.x][selectedPiece.y] &= !currentPlayer;
+								board[tileX][tileY] |= currentPlayer;
+								removeJumpedPieces(board, {
+									sx: selectedPiece.x,
+									sy: selectedPiece.y,
+									ex: tileX,
+									ey: tileY
+								});
+								currentPlayer = currentPlayer === B ? W : B;
+								moveCount++; //just for stats here not rules
+							}
+						}
+					}
+
+
+					/*else if(prevPiece){
+						console.log(getMoves(board, prevPiece, currentPlayer));
+						moves = getMoves(board, prevPiece, currentPlayer);
+
+						console.log('is valid: '+isValidMove(selectedPiece, moves));
+						if(isValidMove(selectedPiece, moves)){
+							board[tileX][tileY] |= currentPlayer;
+							currentPlayer = currentPlayer === B ? W : B;
+							moveCount++; //just for stats here not rules
+						}
+					}else{
+						//first selection of piece
+						moves = getMoves(board, prevPiece, currentPlayer);
+						//annotate the board
+						clearAnnotations(board);
+						for(let i=0; i < moves.length; i++){
+							board[moves[i].ex][moves[i].ey] |= AVAILABLE_MOVE;
+						}
+					}*/
+					
+					
+
+					drawBoard(board, canvas, ctx); 
+				});
+
+				function simulateMove(board, move, currentPlayer){
+					let cloneBoard = JSON.parse(JSON.stringify(board));
+					cloneBoard[move.sx][move.sy] &= !currentPlayer;
+					cloneBoard[move.ex][move.ey] |= currentPlayer;
+					removeJumpedPieces(cloneBoard, move);
+					return cloneBoard;
+				}
+				//then run getMoves() for each player if aiPlayer count > before or enemy player < before good move
+				function scoreMove(board, move, currentPlayer){
+					let movedBoard = simulateMove(board, move);
+					let numMoves = getAllMoves(movedBoard, currentPlayer);
+					//let numOpponenetMoves
+				}	
+
+				function removeJumpedPieces(board, move){
+					//wait don't be stupid just find the direction with a change and delete everything between start and end
+					let start, end;
+					if(move.ex !== move.sx){
+						start = Math.min(move.ex, move.sx);
+						end = Math.max(move.ex, move.sx);
+						for(let i=start+1; i < end; i++){
+							board[i][move.ey] &= E;
+						} 
+					}else{
+						start = Math.min(move.ey, move.sy);
+						end = Math.max(move.ey, move.sy);
+						for(let i=start+1; i < end; i++){
+							board[move.ex][i] &= E;
+						}
+					}
+
+					/*let xdiff = 0;
+					let ydiff = 0;
+					if(move.ex > move.sx){ xdiff = -1; }
+					else if(move.sx > move.ex){ xdiff = 1; }
+
+					if(move.ey > move.sy){ ydiff = -1; }
+					else if(move.sy > move.ey){ ydiff = 1; }
+
+					board[move.ex+xdiff][move.ey+ydiff] &= E;*/
+					//TODO figure out math to always get the correct coordinate to remove regardless of direction travelled
+					/*console.log(move);
+					let xdiff = move.ex - move.sx;
+					let ydiff = move.ey - move.sy;
+					console.log('xdiff: '+xdiff);
+					console.log('ydiff: '+ydiff);
+					if(xdiff < 0){ xdiff++; xdiff = -1*xdiff; }
+					else if(xdiff > 0){ xdiff--; }
+
+					if(ydiff < 0){ ydiff++; ydiff = -1*ydiff;}
+					else if(ydiff > 0){ ydiff--; }
+					console.log(xdiff);
+					console.log(ydiff);
+					board[move.ex+xdiff][move.ey+ydiff] &= E;*/
+
+					//if(
+				}
+
+				function isValidMove(pos, moves){
+					if(!pos){return false; }
+					for(let i=0; i < moves.length; i++){
+						if( (pos.x == moves[i].ex) && (pos.y == moves[i].ey) ){
+							return true;
+						}
+					}
+					return false;
+				}
+
+				function clearAnnotations(board){
+					for(let i=0; i < board.length; i++){
+						for(let j=0; j < board[i].length; j++){
+							if(isAnnotated(board[i][j])){
+								board[i][j] &= !AVAILABLE_MOVE;
+							}
+						}
+					}
+				}
+
+				function annotateBoard(board, moves){
+					if(moves.length <= 0){
+						return board;
+					}
+					let m = moves[0];
+					board[m.sx][m.sy] = SELECTED_PIECE;
+					for(let i=0; i < moves.length; i++){
+						board[moves[i].ex][moves[i].ey] = AVAILABLE_MOVE;
+					}
+				}
+
+				function clearCursor(board){
+					for(let i=0; i < size; i++){
+						for(let j=0; j < size; j++){
+							board[i][j] &= (0xdf); //!CURSOR
+						}
+					}
+				}
+
+				function offset(el){
+					//if(!el) el = this;
+		
+					var x = el.offsetLeft;
+					var y = el.offsetTop;
+		
+					while(el = el.offsetParent){
+						x += el.offsetLeft;
+						y += el.offsetTop;
+					}
+					return { left: x, top : y};
+				}
+
+				function firstMove(board, selectedPiece, player, moveCount){
+					let pos = board[selectedPiece.x][selectedPiece.y];
+					if(player === (pos & PIECE_MASK) ){
+						console.log("correct player");
+						console.log(moveCount);
+						//first move any piece can be selected
+						if(moveCount == 0){//first move no restrictions on selection
+							console.log("first move");
+							board[selectedPiece.x][selectedPiece.y] = E;
+							return true;
+						}else{
+							console.log("not first move");
+							//find empty space
+							let empty = {};
+							for(let i=0; i < board.length; i++){
+								for(let j=0; j < board[i].length; j++){
+									if( (board[i][j] & PIECE_MASK) === E ){
+										empty = {x: i, y: j};
+										break;
+									}
+								}
+							}
+							if(empty !== {}){
+								if(( (selectedPiece.x === empty.x-1) && (selectedPiece.y === empty.y) )
+								|| ( (selectedPiece.x === empty.x+1) && (selectedPiece.y === empty.y) )
+								|| ( (selectedPiece.x === empty.x) && (selectedPiece.y === empty.y-1) )
+								|| ( (selectedPiece.x === empty.x) && (selectedPiece.y === empty.y+1) ) ){
+									board[selectedPiece.x][selectedPiece.y] = E;
+									return true;
+								}else{
+									console.log("second move invalid");
+									return false;
+								} 
+							}
+							//then check that selected piece is adjacent
+							//second move may only select adjacent to first move
+						}
+					}else{
+						return false;
+					}
+				}
+
+				function getAllMoves(board, currentPlayer){
+					let totalMoves = [];
+					for(let i=0; i < board.length; i++){
+						for(let j=0; j < board[i].length; j++){
+							if( (board[i][j] & PIECE_MASK) === currentPlayer){
+								totalMoves = totalMoves.concat(getMoves(board, {x:i, y:j}, currentPlayer));
+							}
+						}
+					}
+					return totalMoves;
+				}
+
+				function getMoves(board, selectedPiece, currentPlayer){
+					if( (board[selectedPiece.x][selectedPiece.y] & PIECE_MASK) === E){
+						return []; //no piece selected
+					}
+					//check if wrong turn and quit
+
+					let moves = [];
+					//error check selected piece
+					if(selectedPiece.x > board.length || selectedPiece.x < 0
+					|| selectedPiece.y > board[0].length || selectedPiece.y < 0){
+						return moves; 
+					};
+
+					
+					//move : {sx: a, sy: b, ex: a2, ey: b2}
+
+					//jump to that position
+					//TODO this is way too permissive, need to prevent invalid moves
+					let sp = selectedPiece;
+					let player = (board[sp.x][sp.y] & PIECE_MASK);
+					//now search up, down, left, right to find capture moves
+					//all start at a +/- 2 offset so that the else{break;} doesn't trigger immediately because we are on the selectedPiece
+					for(let i=sp.x+2; i < board.length; i+=2){
+						//if landing one is empty and zone before is not empty and is opponent
+						if( (board[i][sp.y] & PIECE_MASK) === E && ( (board[i-1][sp.y] & PIECE_MASK) !== player && (board[i-1][sp.y] & PIECE_MASK) !== E ) ){
+							//add move
+							moves.push({
+								sx: sp.x, sy: sp.y,
+								ex: i, ey: sp.y
+							});
+						}else{break;}//path blocked
+					}
+					for(let i=sp.x-2; i >= 0; i-=2){
+						if( (board[i][sp.y] & PIECE_MASK) === E && ( (board[i+1][sp.y] & PIECE_MASK) !== player && (board[i+1][sp.y] & PIECE_MASK) !== E ) ){
+							moves.push({
+								sx: sp.x, sy: sp.y,
+								ex: i, ey: sp.y
+							});
+						}else{break;}//path blocked
+					}
+					for(let i=sp.y+2; i < board[sp.x].length; i+=2){
+						if( (board[sp.x][i] & PIECE_MASK) === E && ( (board[sp.x][i-1] & PIECE_MASK) !== player && (board[sp.x][i-1] & PIECE_MASK) !== E) ){
+							moves.push({
+								sx: sp.x, sy: sp.y,
+								ex: sp.x, ey: i
+							});
+						}else{break;}//path blocked
+					}
+					for(let i=sp.y-2; i >= 0; i-=2){
+						if( (board[sp.x][i] & PIECE_MASK) === E && ( (board[sp.x][i+1] & PIECE_MASK) !== player && (board[sp.x][i+1] & PIECE_MASK) !== E) ){
+							moves.push({
+								sx: sp.x, sy: sp.y,
+								ex: sp.x, ey: i
+							});
+						}else{break;}//path blocked
+					}
+
+					return moves;
+				}
+			});
+		</script>
+	</head>
+	<body>
+		<canvas id="canvas" width="800" height="800"></canvas>
+	</body>
+</html>
