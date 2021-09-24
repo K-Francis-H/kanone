@@ -42,8 +42,8 @@
 				}
 
 				//remove first 2 from corner so game can start without first move logic
-				board[0][0] = E;
-				board[1][0] = E;
+				//board[0][0] = E;
+				//board[1][0] = E;
 
 				function drawBoard(board, canvas, ctx){
 					let size = canvas.width /  board.length;
@@ -111,7 +111,7 @@
 
 				drawBoard(board, canvas, ctx);
 
-				var moveCount = 2; //move 1 & 2 remove a stone then the capturing begins
+				var moveCount = 0; //move 1 & 2 remove a stone then the capturing begins
 				var currentPlayer = B;
 				var humanPlayer = B;
 				var aiPlayer = W;
@@ -138,49 +138,103 @@
 						return;
 					}
 
-
-					//otherwise find a move
-					let moves = getAllMoves(board, currentPlayer);
-					let bestMoveIndex = 0;
-					let mostUsMoves = -1000;
-					let leastThemMoves = 1000;
-					let bestMetric = -1000;
-					let bestMetricIndex = 0;
-					for(let i=0; i < moves.length; i++){
-						let postMoveState = simulateMove(board, moves[i], currentPlayer);
-						let usMovesCount = getAllMoves(postMoveState, currentPlayer).length;
-						let themMovesCount = getAllMoves(postMoveState, humanPlayer).length;
-						console.log(postMoveState);
-						console.log(usMovesCount);
-						if(usMovesCount > mostUsMoves){
-							mostUsMoves = usMovesCount;
-							bestMoveIndex = i;
+					if(moveCount < 2){
+						console.log('AI First Move');
+						board = aiFirstMove(board, currentPlayer, moveCount);
+						currentPlayer = currentPlayer === B ? W : B;
+						moveCount++;
+					}else{
+						//otherwise find a move
+						let moves = getAllMoves(board, currentPlayer);
+						let bestMoveIndex = 0;
+						let mostUsMoves = -1000;
+						let leastThemMoves = 1000;
+						let bestMetric = -1000;
+						let bestMetricIndex = 0;
+						for(let i=0; i < moves.length; i++){
+							let postMoveState = simulateMove(board, moves[i], currentPlayer);
+							let usMovesCount = getAllMoves(postMoveState, currentPlayer).length;
+							let themMovesCount = getAllMoves(postMoveState, humanPlayer).length;
+							console.log(postMoveState);
+							console.log(usMovesCount);
+							if(usMovesCount > mostUsMoves){
+								mostUsMoves = usMovesCount;
+								bestMoveIndex = i;
+							}
+							let metric = usMovesCount + (usMovesCount - themMovesCount);
+							if(metric > bestMetric){
+								bestMetric = metric;
+								bestMetricIndex = i;
+							} 
 						}
-						let metric = usMovesCount + (usMovesCount - themMovesCount);
-						if(metric > bestMetric){
-							bestMetric = metric;
-							bestMetricIndex = i;
-						} 
-					}
-					console.log('BEST USONLY MOVE: '+mostUsMoves);
-					console.log(moves[bestMoveIndex]);
-					console.log('BEST METRIC MOVE: '+bestMetric);
-					console.log(moves[bestMetricIndex]);
+						console.log('BEST USONLY MOVE: '+mostUsMoves);
+						console.log(moves[bestMoveIndex]);
+						console.log('BEST METRIC MOVE: '+bestMetric);
+						console.log(moves[bestMetricIndex]);
 
-					//perform move
-					let m = moves[bestMetricIndex];
-					if(!m){
-						console.log('AI has lost!');
-						return;
+						//perform move
+						let m = moves[bestMetricIndex];
+						if(!m){
+							console.log('AI has lost!');
+							return;
+						}
+						board[m.sx][m.sy] &= !currentPlayer;
+						board[m.ex][m.ey] |= currentPlayer;
+						removeJumpedPieces(board, m);
+						currentPlayer = currentPlayer === B ? W : B;
+						moveCount++; //just for stats here not rules
 					}
-					board[m.sx][m.sy] &= !currentPlayer;
-					board[m.ex][m.ey] |= currentPlayer;
-					removeJumpedPieces(board, m);
-					currentPlayer = currentPlayer === B ? W : B;
-					moveCount++; //just for stats here not rules
 					
 					drawBoard(board, canvas, ctx); 
 				}, 1000);
+
+
+				function aiFirstMove(board, currentPlayer, moveCount){
+					if(moveCount == 0){
+						let selectedValidPiece = false;
+						while(true){
+							let x = getRandomInt(0,board.length);
+							let y = getRandomInt(0,board[x].length);
+							if( (board[x][y] & PIECE_MASK) == currentPlayer){
+								board[x][y] &= E;
+								return board;
+							}
+						}
+					}
+					else if(moveCount == 1){
+						//find empty square first
+						let choices = [];
+						for(let i=0; i < board.length; i++){
+							for(let j=0; j < board[i].length; j++){
+								if( (board[i][j] & PIECE_MASK) == E){
+									if(i-1 >= 0){
+										choices.push({x:i-1,y:j});
+									}
+									if(i+1 < board.length){
+										choices.push({x:i+1,y:j});
+									}
+									if(j-1 >= 0){
+										choices.push({x:i,y:j-1});
+									}
+									if(j+1 < board[i].length){
+										choices.push({x:i,y:j+1});
+									}	
+								}
+							}
+						}
+						//then pick from availabe spots randomly, can also change this to check for move counts...
+						let choice = choices[getRandomInt(0, choices.length)];
+						board[choice.x][choice.y] &= E;
+						return board;
+					}
+					console.log("moveCount is too high!");
+				}
+
+				function getRandomInt(min, max) {
+					min = Math.ceil(min);
+				 	max = Math.floor(max);
+				  	return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
+				}
 
 
 				canvas.addEventListener("mousemove", function(e){
