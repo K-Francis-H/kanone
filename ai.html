@@ -133,8 +133,23 @@
 						//or simply make sure at least one (more is better) capture is available at the bottom of the tree
 					//drawBoard(board, canvas, ctx);
 					
+					//set Turn text
+					let isBlack = currentPlayer == humanPlayer;
+					showTurn(isBlack);
+					
+					//check if gameover, AI wins
+					if(currentPlayer == humanPlayer){
+						let hmoves = getAllMoves(board, currentPlayer);
+						if(hmoves.length < 1){
+							document.getElementById("game-over").innerHTML = "White Wins!";
+							//drawBoard(board, canvas, ctx); 
+							return;
+						}
+					}
+					
 					if(aiPlayer != currentPlayer){
 						console.log('not ai turn...');
+						//drawBoard(board, canvas, ctx); 
 						return;
 					}
 
@@ -171,6 +186,7 @@
 					let m = moves[bestMetricIndex];
 					if(!m){
 						console.log('AI has lost!');
+						document.getElementById("game-over").innerHTML = "Black Wins!";
 						return;
 					}
 					board[m.sx][m.sy] &= !currentPlayer;
@@ -225,7 +241,14 @@
 					console.log(currentPlayer);
 					let color = (board[tileX][tileY] & PIECE_MASK)
 					console.log(color);
+					
+					
 */
+					let availableMoves = getAllMoves(board, currentPlayer);
+					if(availableMoves.length < 1){
+						document.getElementById("game-over").innerHTML = "White Wins!";
+						return;
+					}
 					
 
 					let moves = [];
@@ -272,6 +295,7 @@
 						}
 					}
 
+					
 
 					/*else if(prevPiece){
 						console.log(getMoves(board, prevPiece, currentPlayer));
@@ -293,10 +317,20 @@
 						}
 					}*/
 					
-					
+					let isBlack = currentPlayer == humanPlayer;
+					showTurn(isBlack);
 
 					drawBoard(board, canvas, ctx); 
 				});
+				
+				function showTurn(isBlack){
+					let span = document.getElementById("turn-color");
+					if(isBlack){
+						span.innerText = "Black";
+					}else{
+						span.innerText = "White";
+					}
+				}
 
 				function simulateMove(board, move, currentPlayer){
 					let cloneBoard = JSON.parse(JSON.stringify(board));
@@ -479,7 +513,6 @@
 					//move : {sx: a, sy: b, ex: a2, ey: b2}
 
 					//jump to that position
-					//TODO this is way too permissive, need to prevent invalid moves
 					let sp = selectedPiece;
 					let player = (board[sp.x][sp.y] & PIECE_MASK);
 					//now search up, down, left, right to find capture moves
@@ -525,12 +558,16 @@
 		</script>
 	</head>
 	<body>
-		<canvas id="canvas" width="800" height="800"></canvas>
-		<details>
-			<summary>Konane Rules</summary>
-			<p>
-				The initial board state is filled with white and black stones in an alternating checkered pattern. On the first move a player removes one of their own stones from the board. Often they remove it from a corner or the center, but they may remove it from anywhere. Then their opponent removes a stone directly adjacent but not dagonally adacent to the stone removed by the first player. Subsequent moves are made by leaping over the opponents stones in order to remove them from play. It is legal to jump multiple stones in one move as long as this can be accomplished without changing direction. Diagonal jumps are not allowed. The game ends when one player has no moves to play on their turn. It is impossible to draw, the game will always have a winner.
-			</p>
-		</details>
+		<center>
+			<h1>Kōnane</h1>
+			<h3 id="game-over"><span id="turn-color">Black</span> To Play</h3>
+			<canvas id="canvas" width="800" height="800"></canvas>
+			<details style="margin-left:10%;margin-right:10%;">
+				<summary style="cursor:pointer;"><h3 style="display:inline-block;">Rules</h3></summary>
+				<p>
+					The initial board state is filled with white and black stones in an alternating checkered pattern. On the first move a player removes one of their own stones from the board. Often they remove it from a corner or the center, but they may remove it from anywhere. Then their opponent removes a stone directly adjacent but not dagonally adacent to the stone removed by the first player. Subsequent moves are made by leaping over the opponents stones in order to remove them from play. It is legal to jump multiple stones in one move as long as this can be accomplished without changing direction. Diagonal jumps are not allowed. The game ends when one player has no moves to play on their turn. It is impossible to draw, the game will always have a winner.
+				</p>
+			</details>
+		</center>
 	</body>
 </html>
