@@ -12,6 +12,11 @@
 				const B = 0x02; //black color piece
 				const E = 0x00; //empty tile
 
+				const COLOR_NAME = [];
+				COLOR_NAME[W] = "White";
+				COLOR_NAME[B] = "Black";
+				
+
 				const ANNOTATION_MASK = 0xF0;
 				const AVAILABLE_MOVE = 0x10;
 				const CURSOR = 0x20;
@@ -113,8 +118,8 @@
 
 				var moveCount = 0; //move 1 & 2 remove a stone then the capturing begins
 				var currentPlayer = B;
-				var humanPlayer = B;
-				var aiPlayer = W;
+				var humanPlayer = W;
+				var aiPlayer = B;//W;
 
 				let gameLoop = setInterval(function(){
 					//recieve input
@@ -135,7 +140,14 @@
 					
 					if(aiPlayer != currentPlayer){
 						console.log('not ai turn...');
+						if(moveCount >= 2){document.getElementById("status").innerText = COLOR_NAME[humanPlayer]+" to play";}
+						//check if player has lost
+						if(getAllMoves(board, currentPlayer).length == 0 && moveCount >= 2){
+							document.getElementById("status").innerText = COLOR_NAME[aiPlayer]+" (AI) wins!";
+						}
 						return;
+					}else{
+						if(moveCount >= 2){document.getElementById("status").innerText = COLOR_NAME[aiPlayer]+" (AI) to play"};
 					}
 
 					if(moveCount < 2){
@@ -143,6 +155,8 @@
 						board = aiFirstMove(board, currentPlayer, moveCount);
 						currentPlayer = currentPlayer === B ? W : B;
 						moveCount++;
+
+						document.getElementById("status").innerText = COLOR_NAME[currentPlayer]+" to play. Select a stone to remove";
 					}else{
 						//otherwise find a move
 						let moves = getAllMoves(board, currentPlayer);
@@ -176,6 +190,7 @@
 						let m = moves[bestMetricIndex];
 						if(!m){
 							console.log('AI has lost!');
+							document.getElementById("status").innerText = COLOR_NAME[humanPlayer]+" wins!";
 							return;
 						}
 						board[m.sx][m.sy] &= !currentPlayer;
@@ -579,6 +594,9 @@
 		</script>
 	</head>
 	<body>
-		<canvas id="canvas" width="800" height="800"></canvas>
+		<center>
+			<h1>Kōnane</h1>
+			<canvas id="canvas" width="800" height="800"></canvas>
+			<h2 id="status">Black to play. Select a stone to remove</h2>
 	</body>
 </html>
